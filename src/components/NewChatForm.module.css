@@ -1,0 +1,119 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--max-gradient);
+  background-attachment: fixed;
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--max-surface);
+  padding: 40px 32px 32px;
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(31, 41, 55, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.logo {
+  align-self: flex-start;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--max-gradient-soft);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.title {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: var(--max-muted);
+  margin-bottom: 4px;
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--max-border);
+  border-radius: 12px;
+  font-size: 14px;
+  background: #fafbfc;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.input:focus {
+  border-color: var(--max-primary);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+}
+
+.submit {
+  margin-top: 4px;
+  padding: 13px 16px;
+  border: none;
+  border-radius: 12px;
+  background: var(--max-gradient-soft);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35);
+  transition: filter 0.15s, transform 0.05s;
+}
+
+.submit:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.submit:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.link {
+  background: transparent;
+  border: none;
+  color: var(--max-muted);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.link:hover {
+  color: var(--max-primary);
+}
+
+.error {
+  background: var(--max-error-bg);
+  color: var(--max-error-text);
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+}
