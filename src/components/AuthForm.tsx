@@ -1,15 +1,28 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
+import type { Credentials } from '../types'
 import styles from './AuthForm.module.css'
 
-export default function AuthForm({ onSubmit, loading = false, error = '' }) {
+interface AuthFormProps {
+  onSubmit: (
+    credentials: Pick<Credentials, 'idInstance' | 'apiTokenInstance'>
+  ) => void | Promise<void>
+  loading?: boolean
+  error?: string
+}
+
+export default function AuthForm({
+  onSubmit,
+  loading = false,
+  error = ''
+}: AuthFormProps) {
   const [idInstance, setIdInstance] = useState('')
   const [apiTokenInstance, setApiTokenInstance] = useState('')
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>): void => {
     e.preventDefault()
     if (loading) return
     if (!idInstance.trim() || !apiTokenInstance.trim()) return
-    onSubmit({
+    void onSubmit({
       idInstance: idInstance.trim(),
       apiTokenInstance: apiTokenInstance.trim()
     })
@@ -30,7 +43,7 @@ export default function AuthForm({ onSubmit, loading = false, error = '' }) {
             className={styles.input}
             value={idInstance}
             onChange={(e) => setIdInstance(e.target.value)}
-            placeholder="310022740150"
+            placeholder="Ваш idInstance"
             autoComplete="off"
             disabled={loading}
           />

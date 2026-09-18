@@ -1,24 +1,27 @@
-import { useEffect, useRef, useState } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent
+} from 'react'
 import {
   sendMessage,
   receiveNotification,
   deleteNotification
 } from '../api/greenApi'
 import Message from './Message'
+import type { ChatMessage, Credentials, GreenNotification } from '../types'
 import styles from './Chat.module.css'
 
 const POLL_INTERVAL = 3000
 const POLL_INTERVAL_ERROR = 10000
 const MAX_PER_TICK = 20
 
-function formatPhone(raw) {
+function formatPhone(raw: string): string {
   if (!raw) return ''
   const digits = String(raw).replace(/\D/g, '')
-  if (digits.length === 11 && digits.startsWith('7')) {
-    const d = digits.slice(1)
-    return `+7 ${d.slice(0, 3)} ${d.slice(3, 6)}-${d.slice(6, 8)}-${d.slice(8, 10)}`
-  }
-  if (digits.length === 11 && digits.startsWith('8')) {
+  if (digits.length === 11 && (digits.startsWith('7') || digits.startsWith('8'))) {
     const d = digits.slice(1)
     return `+7 ${d.slice(0, 3)} ${d.slice(3, 6)}-${d.slice(6, 8)}-${d.slice(8, 10)}`
   }
@@ -28,18 +31,36 @@ function formatPhone(raw) {
   return `+${digits}`
 }
 
-export default function Chat({ credentials, chatId, phone, onBack }) {
-  const [messages, setMessages] = useState([])
+const STATUS_LABELS: Record<string, string> = {
+  active: 'В сети',
+  authorized: 'Авторизован',
+  notAuthorized: 'Не авторизован',
+  blocked: 'Заблокирован',
+  starting: 'Запускается…',
+  suspended: 'Временные ограничения',
+  pendingPassword: 'Ожидает пароль 2FA'
+}
+
+interface ChatProps {
+  credentials: Credentials
+  chatId: string
+  phone: string
+  onBack: () => void
+}
+
+export default function Chat({ credentials, chatId, phone, onBack }: ChatProps) {
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
-  const [status, setStatus] = useState('active')
-  const bottomRef = useRef(null)
-  const failedRef = useRef(new Set())
-  const seenIdsRef = useRef(new Set())
+  const [status, setStatus] = useState<string>('active')
+
+  const bottomRef = useRef<HTMLDivElement | null>(null)
+  const failedRef = useRef<Set<number>>(new Set())
+  const seenIdsRef = useRef<Set<string>>(new Set())
 
   const isSelfChat =
-    credentials.ownWid &&
+    !!credentials.ownWid &&
     String(credentials.ownWid).replace(/\D/g, '') ===
       String(chatId).replace(/\D/g, '')
 
@@ -49,17 +70,17 @@ export default function Chat({ credentials, chatId, phone, onBack }) {
 
   useEffect(() => {
     let cancelled = false
-    let timerId = null
+    let timerId: ReturnType<typeof setTimeout> | null = null
 
-    const pushMessage = (msg) => {
+    const pushMessage = (msg: ChatMessage): void => {
       if (!msg.id) return
       if (seenIdsRef.current.has(msg.id)) return
       seenIdsRef.current.add(msg.id)
       setMessages((prev) => [...prev, msg])
     }
 
-    const processNotification = (n) => {
-      const body = n?.body
+    const processNotification = (n: GreenNotification): void => {
+      const body = n.body
       if (!body) return
 
       if (body.typeWebhook === 'stateInstanceChanged') {
@@ -84,30 +105,34 @@ export default function Chat({ credentials, chatId, phone, onBack }) {
         body.typeWebhook === 'outgoingAPIMessageReceived'
 
       const effectiveChatId =
-        body.senderData?.chatId || body.recipientData?.chatId
+        body.senderData?.chatId ?? body.recipientData?.chatId
 
       if (effectiveChatId && String(effectiveChatId) !== String(chatId)) return
 
       pushMessage({
-        id: body.idMessage || `n-${n.receiptId}-${Date.now()}`,
+        id: body.idMessage ?? `n-${n.receiptId}-${Date.now()}`,
         text: textValue,
         outgoing: isOutgoing,
-        timestamp: body.timestamp || Math.floor(Date.now() / 1000)
+        timestamp: body.timestamp ?? Math.floor(Date.now() / 1000)
       })
     }
 
-    const poll = async () => {
+    const poll = async (): Promise<void> => {
       if (cancelled) return
       let processed = 0
-      let stopReason = 'empty'
+      let stopReason: 'empty' | 'error' = 'empty'
 
       while (!cancelled && processed < MAX_PER_TICK) {
-        let n
+        let n: GreenNotification | null
         try {
           n = await receiveNotification(credentials)
         } catch (err) {
           stopReason = 'error'
-          setError(`Не удалось получить уведомления: ${err.message}`)
+          setError(
+            `Не удалось получить уведомления: ${
+              err instanceof Error ? err.message : String(err)
+            }`
+          )
           break
         }
 
@@ -126,9 +151,11 @@ export default function Chat({ credentials, chatId, phone, onBack }) {
         } catch (err) {
           failedRef.current.add(n.receiptId)
           stopReason = 'error'
+          const e = err as { status?: number; message?: string }
           setError(
-            `Не удалось подтвердить уведомление (${err.status || 'network'}): ${err.message}. ` +
-            `Проверь apiTokenInstance — он должен быть ровно как в кабинете GREEN-API.`
+            `Не удалось подтвердить уведомление (${e.status ?? 'network'}): ${
+              e.message ?? ''
+            }. Проверь apiTokenInstance — он должен быть ровно как в кабинете GREEN-API.`
           )
           break
         }
@@ -142,7 +169,7 @@ export default function Chat({ credentials, chatId, phone, onBack }) {
       timerId = setTimeout(poll, delay)
     }
 
-    poll()
+    void poll()
 
     return () => {
       cancelled = true
@@ -150,7 +177,9 @@ export default function Chat({ credentials, chatId, phone, onBack }) {
     }
   }, [credentials, chatId])
 
-  const handleSend = async (e) => {
+  const handleSend = async (
+    e?: FormEvent<HTMLFormElement>
+  ): Promise<void> => {
     e?.preventDefault?.()
     const value = text.trim()
     if (!value || sending) return
@@ -163,7 +192,7 @@ export default function Chat({ credentials, chatId, phone, onBack }) {
         chatId,
         message: value
       })
-      const id = res.idMessage || `out-${Date.now()}`
+      const id = res.idMessage ?? `out-${Date.now()}`
       if (!seenIdsRef.current.has(id)) {
         seenIdsRef.current.add(id)
         setMessages((prev) => [
@@ -178,28 +207,22 @@ export default function Chat({ credentials, chatId, phone, onBack }) {
       }
       setText('')
     } catch (err) {
-      setError(err.message || 'Не удалось отправить сообщение')
+      setError(
+        err instanceof Error ? err.message : 'Не удалось отправить сообщение'
+      )
     } finally {
       setSending(false)
     }
   }
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>): void => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      handleSend()
+      void handleSend()
     }
   }
 
-  const statusLabel = {
-    active: 'В сети',
-    authorized: 'Авторизован',
-    notAuthorized: 'Не авторизован',
-    blocked: 'Заблокирован',
-    starting: 'Запускается…',
-    suspended: 'Временные ограничения',
-    pendingPassword: 'Ожидает пароль 2FA'
-  }[status] || status
+  const statusLabel = STATUS_LABELS[status] ?? status
 
   const displayName = phone ? formatPhone(phone) : chatId
   const initials = phone
@@ -269,10 +292,7 @@ export default function Chat({ credentials, chatId, phone, onBack }) {
             aria-label="Отправить"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M4 12l16-8-6 16-2.5-6L4 12z"
-                fill="currentColor"
-              />
+              <path d="M4 12l16-8-6 16-2.5-6L4 12z" fill="currentColor" />
             </svg>
           </button>
         </form>

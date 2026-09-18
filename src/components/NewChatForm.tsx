@@ -1,13 +1,26 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { checkAccount } from '../api/greenApi'
+import type { ChatTarget, Credentials } from '../types'
 import styles from './NewChatForm.module.css'
 
-export default function NewChatForm({ credentials, onSubmit, onBack }) {
+interface NewChatFormProps {
+  credentials: Credentials
+  onSubmit: (target: ChatTarget) => void
+  onBack: () => void
+}
+
+export default function NewChatForm({
+  credentials,
+  onSubmit,
+  onBack
+}: NewChatFormProps) {
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (
+    e: FormEvent<HTMLFormElement>
+  ): Promise<void> => {
     e.preventDefault()
     const cleaned = phone.replace(/\D/g, '')
     if (!cleaned || loading) return
@@ -20,7 +33,7 @@ export default function NewChatForm({ credentials, onSubmit, onBack }) {
         ...credentials,
         phoneNumber: cleaned
       })
-      if (!res?.exist) {
+      if (!res?.exist || !res.chatId) {
         setError('Аккаунт MAX с таким номером не найден')
         return
       }
@@ -39,7 +52,9 @@ export default function NewChatForm({ credentials, onSubmit, onBack }) {
 
       onSubmit({ chatId: targetChatId, phone: cleaned })
     } catch (err) {
-      setError(err.message || 'Не удалось проверить аккаунт')
+      setError(
+        err instanceof Error ? err.message : 'Не удалось проверить аккаунт'
+      )
     } finally {
       setLoading(false)
     }

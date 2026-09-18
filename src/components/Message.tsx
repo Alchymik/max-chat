@@ -1,10 +1,15 @@
+import type { ChatMessage } from '../types'
 import styles from './Message.module.css'
 
-export default function Message({ message }) {
-  const time = new Date((message.timestamp || 0) * 1000).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+interface MessageProps {
+  message: ChatMessage
+}
+
+export default function Message({ message }: MessageProps) {
+  const time = new Date((message.timestamp || 0) * 1000).toLocaleTimeString(
+    [],
+    { hour: '2-digit', minute: '2-digit' }
+  )
 
   const cls = `${styles.row} ${
     message.outgoing ? styles.outgoing : styles.incoming
